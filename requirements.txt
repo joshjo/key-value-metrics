@@ -1,0 +1,2 @@
+python-rocksdb==0.7.0
+shortuuid==0.5.0
