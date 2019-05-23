@@ -1,8 +1,10 @@
+import os
 import rocksdb
 import redis
 import subprocess
 import shortuuid
 import time
+import numpy
 from random import shuffle
 
 
@@ -19,24 +21,26 @@ class MetricBase(object):
 
     """
     def __init__(self):
-        N = 5 * 10000
+        # One million
+        N = 1000000
         self.keys = range(N)
+        self.times_writes = []
+        self.times_reads = []
 
-    def run(self):
-        tries = 1
-        times_writes = []
-        times_reads = []
+    def run(self, tries=10):
+        self.times_writes = []
+        self.times_reads = []
+        print("Num tries:", tries)
         for i in range(tries):
-            self.reset()
-            self.write()
-            # times_writes.append()
-            # times_reads.append(self.read())
-        print(times_writes)
-        print(times_reads)
+            self.reset(i)
+            self.times_writes.append(self.write())
+            self.times_reads.append(self.read())
+        print(numpy.average(self.times_writes))
+        print(numpy.average(self.times_reads))
 
 
-class Redis(MetricBase):
-    def __init__(self, db):
+class RedisDB(MetricBase):
+    def __init__(self):
         super().__init__()
         self.reset()
 
@@ -61,13 +65,13 @@ class Redis(MetricBase):
 
 class RocksDB(MetricBase):
     def __init__(self):
+        subprocess.check_output(['rm','-rf', 'puts-*.db'])
         super().__init__()
-        self.reset()
 
-    def reset(self):
-        subprocess.check_output(['rm','-rf', 'puts.db'])
+    def reset(self, iter):
+        print('iter', iter)
         self.db = rocksdb.DB(
-            "puts.db", rocksdb.Options(create_if_missing=True))
+            "puts-%d.db" % iter, rocksdb.Options(create_if_missing=True))
 
     def write(self):
         start = time.time()
@@ -87,7 +91,11 @@ class RocksDB(MetricBase):
 
 
 if __name__ == '__main__':
+
+    print('===== rocks DB =====')
     rocks = RocksDB()
     rocks.run()
-    # rocks.write()
-    # rocks.read()
+
+    print('===== redis DB =====')
+    redis_metric = RedisDB()
+    redis_metric.run()
